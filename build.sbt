@@ -6,8 +6,12 @@ scalaVersion := "2.11.8"
 
 val configVersion = "1.3.0"
 val coreNlpVersion = "3.6.0"
+val sparkVersion ="2.2.0"
 
-libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.2.0"
+libraryDependencies ++= Seq(
+  "org.apache.spark" %% "spark-mllib" % sparkVersion ,
+  "org.apache.spark" %% "spark-sql"  % sparkVersion
+)
 
 
 libraryDependencies ++= Seq(

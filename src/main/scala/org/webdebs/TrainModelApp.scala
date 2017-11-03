@@ -16,7 +16,7 @@ import org.apache.spark.mllib.classification.{NaiveBayes, NaiveBayesModel}
 
 import scala.io.Source
 
-case class RedditItem(body:String)
+
 
 
 object TrainModelApp  extends App{

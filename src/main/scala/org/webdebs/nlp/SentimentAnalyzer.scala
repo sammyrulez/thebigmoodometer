@@ -1,5 +1,6 @@
 package org.webdebs.nlp
 
+import java.lang.Exception
 import java.util.Properties
 
 import edu.stanford.nlp.ling.CoreAnnotations
@@ -19,9 +20,14 @@ class SentimentAnalyzer {
   }
 
   def computeSentiment(text: String): Int = {
+    try {
     val (_, sentiment) = extractSentiments(text)
       .maxBy { case (sentence, _) => sentence.length }
     sentiment
+    }
+    catch {
+      case e:Exception => 0
+    }
   }
 
   /*

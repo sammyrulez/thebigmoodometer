@@ -14,6 +14,12 @@ libraryDependencies ++= Seq(
 )
 
 
+assemblyExcludedJars in assembly := {
+  val cp = (fullClasspath in assembly).value
+  cp filter {_.data.getName.contains("spark")}
+}
+
+
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % configVersion,
   "edu.stanford.nlp" % "stanford-corenlp" % coreNlpVersion,

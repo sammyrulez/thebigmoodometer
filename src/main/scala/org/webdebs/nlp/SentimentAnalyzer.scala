@@ -52,28 +52,6 @@ class SentimentAnalyzer {
       .toList
   }
 
-  def computeWeightedSentiment(text: String): Int = {
 
-    val annotation = pipeline.process(text)
-    val sentiments: ListBuffer[Double] = ListBuffer()
-    val sizes: ListBuffer[Int] = ListBuffer()
-
-    for (sentence <- annotation.get(classOf[CoreAnnotations.SentencesAnnotation])) {
-      val tree = sentence.get(classOf[SentimentCoreAnnotations.SentimentAnnotatedTree])
-      val sentiment = RNNCoreAnnotations.getPredictedClass(tree)
-
-      sentiments += sentiment.toDouble
-      sizes += sentence.toString.length
-    }
-
-    val weightedSentiment = if (sentiments.isEmpty) {
-      -1
-    } else {
-      val weightedSentiments = (sentiments, sizes).zipped.map((sentiment, size) => sentiment * size)
-      weightedSentiments.sum / sizes.sum
-    }
-
-    normalizeCoreNLPSentiment(weightedSentiment)
-  }
 
 }

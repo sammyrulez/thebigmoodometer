@@ -24,7 +24,7 @@ object NormalizeApp extends App{
   val writer = new PrintWriter(new File(conf.getString("sentimentFile")))
 
 
-  Source.fromFile("/Users/sam/Downloads/2017/RC_2017-01").getLines().map(
+  Source.fromFile(conf.getString("rawData")).getLines().map(
     src => decode[RedditItem](src)
   ).filter(_.isRight).map( _ match {
     case Right(i) => i

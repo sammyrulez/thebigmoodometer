@@ -2,6 +2,7 @@ package org.webdebs
 
 import java.io.{File, PrintWriter}
 
+import com.typesafe.config.{Config, ConfigFactory}
 import io.circe._
 import io.circe.generic.auto._
 import io.circe.parser._
@@ -18,14 +19,16 @@ object NormalizeApp extends App{
 
  val sentiment = new SentimentAnalyzer
 
-  val writer = new PrintWriter(new File("/Volumes/RedditData/Sentiment-train.csv"))
+  val conf: Config = ConfigFactory.load("application.conf")
+
+  val writer = new PrintWriter(new File(conf.getString("sentimentFile")))
 
 
   Source.fromFile("/Users/sam/Downloads/2017/RC_2017-01").getLines().map(
     src => decode[RedditItem](src)
   ).filter(_.isRight).map( _ match {
     case Right(i) => i
-  }).map(ri => List(ri.subreddit,ri.author,StringEscapeUtils.escapeCsv(ri.body),  sentiment.computeSentiment(ri.body)))
+  }).map(ri => List(ri.subreddit,ri.author,StringEscapeUtils.escapeCsv(ri.body.replace('\n',' ')),  sentiment.computeSentiment(ri.body)))
       .map(_.mkString(",") + "\n")
     .foreach(writer.write)
 

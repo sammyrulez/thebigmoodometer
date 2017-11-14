@@ -28,7 +28,8 @@ object NormalizeApp extends App{
     src => decode[RedditItem](src)
   ).filter(_.isRight).map( _ match {
     case Right(i) => i
-  }).map(ri => List(ri.subreddit,ri.author,StringEscapeUtils.escapeCsv(ri.body.replace('\n',' ')),  sentiment.computeSentiment(ri.body)))
+  }).map(ri => List(ri.subreddit,ri.author,StringEscapeUtils.escapeCsv(ri.body.replace('\n',' ')),
+    sentiment.computeSentiment(ri.body)))
       .map(_.mkString(",") + "\n")
     .foreach(writer.write)
 

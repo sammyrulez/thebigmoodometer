@@ -30,27 +30,26 @@ class SentimentAnalyzer {
     }
   }
 
-  /*
-    * Normalize sentiment for visualization perspective.
-    */
-  def normalizeCoreNLPSentiment(sentiment: Double): Int = {
-    sentiment match {
-      case s if s <= 0.0 => 0 // neutral
-      case s if s < 2.0 => -1 // negative
-      case s if s < 3.0 => 0 // neutral
-      case s if s < 5.0 => 1 // positive
-      case _ => 0 // if we cant find the sentiment, we will deem it as neutral.
-    }
-  }
-
   def extractSentiments(text: String): List[(String, Int)] = {
     val annotation: Annotation = pipeline.process(text)
     val sentences = annotation.get(classOf[CoreAnnotations.SentencesAnnotation])
     sentences
       .map(sentence => (sentence, sentence.get(classOf[SentimentCoreAnnotations.SentimentAnnotatedTree])))
-      .map { case (sentence, tree) => (sentence.toString, normalizeCoreNLPSentiment(RNNCoreAnnotations.getPredictedClass(tree))) }
+      .map { case (sentence, tree) => (sentence.toString, normalizeSentiment(RNNCoreAnnotations.getPredictedClass(tree))) }
       .toList
   }
+
+  def normalizeSentiment(sentiment: Double): Int = {
+    sentiment match {
+      case s if s <= 0.0 => 0 // neutral
+      case s if s < 2.0 => -1 // negative
+      case s if s < 3.0 => 0 // neutral
+      case s if s < 5.0 => 1 // positive
+      case _ => 0 // neutral.
+    }
+  }
+
+
 
 
 

@@ -26,6 +26,28 @@ object SparkUtils {
       .save(conf.getString("accuracyFile"))
   }
 
+  def replaceNewLines(tweetText: String): String = {
+    tweetText.replaceAll("\n", "")
+  }
+
+  def getBarebonesTweetText(tweetText: String, stopWordsList: List[String]): Seq[String] = {
+
+    tweetText.toLowerCase()
+      .replaceAll("\n", "")
+      .replaceAll("rt\\s+", "")
+      .replaceAll("\\s+@\\w+", "")
+      .replaceAll("@\\w+", "")
+      .replaceAll("\\s+#\\w+", "")
+      .replaceAll("#\\w+", "")
+      .replaceAll("(?:https?|http?)://[\\w/%.-]+", "")
+      .replaceAll("(?:https?|http?)://[\\w/%.-]+\\s+", "")
+      .replaceAll("(?:https?|http?)//[\\w/%.-]+\\s+", "")
+      .replaceAll("(?:https?|http?)//[\\w/%.-]+", "")
+      .split("\\W+")
+      .filter(_.matches("^[a-zA-Z]+$"))
+      .filter(!stopWordsList.contains(_))
+  }
+
   def buildSqlContext(sc: SparkContext): SQLContext = {
    new org.apache.spark.sql.SQLContext(sc)
   }

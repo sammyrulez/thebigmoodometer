@@ -40,21 +40,12 @@ object SparkNaiveBayesModelApp extends App{
     validateAccuracyOfNBModel(sc, stopWordsList)
 
 
-//lib
-  def replaceNewLines(tweetText: String): String = {
-    tweetText.replaceAll("\n", "")
-  }
-
-
-
   def createAndSaveNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val tweetsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
 
-
-
     val labeledRDD = tweetsDF.select("polarity", "body").rdd.map {
       case Row(polarity: Int, body: String) =>
-        val tweetInWords: Seq[String] = MLlibSentimentAnalyzer.getBarebonesTweetText(body, stopWordsList.value)
+        val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(body, stopWordsList.value)
         LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(tweetInWords))
     }
     labeledRDD.cache()
@@ -63,15 +54,15 @@ object SparkNaiveBayesModelApp extends App{
     naiveBayesModel.save(sc, conf.getString("NBFile"))
   }
 
- //MOVE
+
   def validateAccuracyOfNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val naiveBayesModel: NaiveBayesModel = NaiveBayesModel.load(sc, conf.getString("NBFile"))
 
     val tweetsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
     val actualVsPredictionRDD = tweetsDF.select("polarity", "body").rdd.map {
       case Row(polarity: Int, tweet: String) =>
-        val tweetText = replaceNewLines(tweet)
-        val tweetInWords: Seq[String] = MLlibSentimentAnalyzer.getBarebonesTweetText(tweetText, stopWordsList.value)
+        val tweetText = SparkUtils.replaceNewLines(tweet)
+        val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(tweetText, stopWordsList.value)
         (polarity.toDouble,
           naiveBayesModel.predict(MLlibSentimentAnalyzer.transformFeatures(tweetInWords)),
           tweetText)

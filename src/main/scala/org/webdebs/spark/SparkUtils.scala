@@ -4,10 +4,11 @@ import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SaveMode
-import org.webdebs.SparkNaiveBayesModelApp.conf
-
+import org.webdebs.SparkNaiveBayesModelApp.{conf, getClass}
 import org.apache.spark.sql._
 import org.apache.spark.{SparkConf, SparkContext}
+
+import scala.io.Source
 
 object SparkUtils {
 
@@ -50,5 +51,9 @@ object SparkUtils {
 
   def buildSqlContext(sc: SparkContext): SQLContext = {
    new org.apache.spark.sql.SQLContext(sc)
+  }
+
+  def loadStopWords(stopWordsFileName: String): List[String] = {
+    Source.fromInputStream(getClass.getResourceAsStream( stopWordsFileName)).getLines().toList
   }
 }

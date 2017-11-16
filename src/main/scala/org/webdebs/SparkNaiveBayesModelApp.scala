@@ -18,9 +18,7 @@ object SparkNaiveBayesModelApp extends App{
   val conf: Config = ConfigFactory.load("application.conf")
 
 
-  def loadStopWords(stopWordsFileName: String): List[String] = {
-    Source.fromInputStream(getClass.getResourceAsStream( stopWordsFileName)).getLines().toList
-  }
+
 
 
 
@@ -35,9 +33,21 @@ object SparkNaiveBayesModelApp extends App{
 
 
 
-    val stopWordsList = sc.broadcast(loadStopWords(conf.getString("stopWordsFile")))
+    val stopWordsList = sc.broadcast(SparkUtils.loadStopWords(conf.getString("stopWordsFile")))
     createAndSaveNBModel(sc, stopWordsList)
     validateAccuracyOfNBModel(sc, stopWordsList)
+
+  def loadSentimentFile(sc: SparkContext, sentimentFilePath: String): DataFrame = {
+    val sqlContext = SparkUtils.buildSqlContext(sc)
+    val tweetsDF = sqlContext.read
+      .format("com.databricks.spark.csv")
+      .option("header", "false")
+      .option("inferSchema", "true")
+      .load(sentimentFilePath)
+
+    tweetsDF.toDF("subreddit","author", "body", "polarity")
+
+  }
 
 
   def createAndSaveNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
@@ -69,23 +79,15 @@ object SparkNaiveBayesModelApp extends App{
     }
     val accuracy = 100.0 * actualVsPredictionRDD.filter(x => x._1 == x._2).count() / tweetsDF.count()
 
-    println(f"""\n\t<==******** Prediction accuracy compared to actual: $accuracy%.2f%% ********==>\n""")
+    println(
+      f"""*******************************
+         |\n\tAccuracy: $accuracy%.2f%% \n
+         |*******************************""".stripMargin)
     SparkUtils.saveAccuracy(sc, actualVsPredictionRDD)
   }
 
 
-  def loadSentimentFile(sc: SparkContext, sentimentFilePath: String): DataFrame = {
-    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
-    val tweetsDF = sqlContext.read
-      .format("com.databricks.spark.csv")
-      .option("header", "false")
-      .option("inferSchema", "true")
-      .load(sentimentFilePath)
 
-       tweetsDF.toDF("subreddit","author", "body", "polarity")
-
-
-  }
 
 
 

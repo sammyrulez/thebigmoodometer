@@ -18,10 +18,6 @@ object SparkNaiveBayesModelApp extends App{
   val conf: Config = ConfigFactory.load("application.conf")
 
 
-
-
-
-
     val spark = SparkSession.builder.appName("Simple Application")
       // .master("local[2]")
       .master(conf.getString("sparkUrl"))

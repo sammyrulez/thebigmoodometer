@@ -39,21 +39,21 @@ object SparkNaiveBayesModelApp extends App{
 
   def loadSentimentFile(sc: SparkContext, sentimentFilePath: String): DataFrame = {
     val sqlContext = SparkUtils.buildSqlContext(sc)
-    val tweetsDF = sqlContext.read
+    val postsDF = sqlContext.read
       .format("com.databricks.spark.csv")
       .option("header", "false")
       .option("inferSchema", "true")
       .load(sentimentFilePath)
 
-    tweetsDF.toDF("subreddit","author", "body", "polarity")
+    postsDF.toDF("subreddit","author", "body", "polarity")
 
   }
 
 
   def createAndSaveNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
-    val tweetsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
+    val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
 
-    val labeledRDD = tweetsDF.select("polarity", "body").rdd.map {
+    val labeledRDD = postsDF.select("polarity", "body").rdd.map {
       case Row(polarity: Int, body: String) =>
         val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(body, stopWordsList.value)
         LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(tweetInWords))
@@ -68,8 +68,8 @@ object SparkNaiveBayesModelApp extends App{
   def validateAccuracyOfNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val naiveBayesModel: NaiveBayesModel = NaiveBayesModel.load(sc, conf.getString("NBFile"))
 
-    val tweetsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
-    val actualVsPredictionRDD = tweetsDF.select("polarity", "body").rdd.map {
+    val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
+    val actualVsPredictionRDD = postsDF.select("polarity", "body").rdd.map {
       case Row(polarity: Int, tweet: String) =>
         val tweetText = SparkUtils.replaceNewLines(tweet)
         val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(tweetText, stopWordsList.value)
@@ -77,7 +77,7 @@ object SparkNaiveBayesModelApp extends App{
           naiveBayesModel.predict(MLlibSentimentAnalyzer.transformFeatures(tweetInWords)),
           tweetText)
     }
-    val accuracy = 100.0 * actualVsPredictionRDD.filter(x => x._1 == x._2).count() / tweetsDF.count()
+    val accuracy = 100.0 * actualVsPredictionRDD.filter(x => x._1 == x._2).count() / postsDF.count()
 
     println(
       f"""*******************************

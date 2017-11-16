@@ -33,25 +33,16 @@ object SparkNaiveBayesModelApp extends App{
     createAndSaveNBModel(sc, stopWordsList)
     validateAccuracyOfNBModel(sc, stopWordsList)
 
-  def loadSentimentFile(sc: SparkContext, sentimentFilePath: String): DataFrame = {
-    val sqlContext = SparkUtils.buildSqlContext(sc)
-    val postsDF = sqlContext.read
-      .format("com.databricks.spark.csv")
-      .option("header", "false")
-      .option("inferSchema", "true")
-      .load(sentimentFilePath)
 
-    postsDF.toDF("subreddit","author", "body", "polarity")
-
-  }
 
 
   def createAndSaveNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
 
     val labeledRDD = postsDF.select("polarity", "body").rdd.map {
-      case Row(polarity: Int, body: String) =>
-        val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(body, stopWordsList.value)
+      case Row(polarity: Int, body: Any) =>
+        val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(body.toString, stopWordsList.value)
+
         LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(tweetInWords))
     }
     labeledRDD.cache()
@@ -60,14 +51,27 @@ object SparkNaiveBayesModelApp extends App{
     naiveBayesModel.save(sc, conf.getString("NBFile"))
   }
 
+  def loadSentimentFile(sc: SparkContext, sentimentFilePath: String): DataFrame = {
+    val sqlContext = SparkUtils.buildSqlContext(sc)
+    val postsDF = sqlContext.read
+      .format("com.databricks.spark.csv")
+      .option("header", "false")
+      .option("inferSchema", "true")
+      .option("quote","\"")
+      .option("escape","\"")
+      .load(sentimentFilePath)
+
+    postsDF.toDF("subreddit","author", "body", "polarity")
+
+  }
 
   def validateAccuracyOfNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val naiveBayesModel: NaiveBayesModel = NaiveBayesModel.load(sc, conf.getString("NBFile"))
 
     val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
     val actualVsPredictionRDD = postsDF.select("polarity", "body").rdd.map {
-      case Row(polarity: Int, tweet: String) =>
-        val tweetText = SparkUtils.replaceNewLines(tweet)
+      case Row(polarity: Int, post: String) =>
+        val tweetText = SparkUtils.replaceNewLines(post)
         val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(tweetText, stopWordsList.value)
         (polarity.toDouble,
           naiveBayesModel.predict(MLlibSentimentAnalyzer.transformFeatures(tweetInWords)),

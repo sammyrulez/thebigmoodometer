@@ -29,7 +29,7 @@ object SparkNaiveBayesModelApp extends App{
 
 
 
-    val stopWordsList = sc.broadcast(SparkUtils.loadStopWords(conf.getString("stopWordsFile")))
+    val stopWordsList = sc.broadcast(SparkUtils.loadStopWords(conf.getString("stopWordsFile"))) //"subreddit","author", "body", "polarity"
     createAndSaveNBModel(sc, stopWordsList)
     validateAccuracyOfNBModel(sc, stopWordsList)
 
@@ -39,17 +39,25 @@ object SparkNaiveBayesModelApp extends App{
   def createAndSaveNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
 
-    val labeledRDD = postsDF.select("polarity", "body").rdd.map {
+    val labeledRDD = postsDF.select("polarity", "body").rdd.collect {
       case Row(polarity: Int, body: Any) =>
         val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(body.toString, stopWordsList.value)
 
         LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(tweetInWords))
     }
     labeledRDD.cache()
+    val effectiveLabels = labeledRDD.count();
+    println(
+      f"""
+        |labels : $effectiveLabels
+      """.stripMargin)
 
     val naiveBayesModel: NaiveBayesModel = NaiveBayes.train(labeledRDD, lambda = 1.0, modelType = "multinomial")
     naiveBayesModel.save(sc, conf.getString("NBFile"))
   }
+
+
+
 
   def loadSentimentFile(sc: SparkContext, sentimentFilePath: String): DataFrame = {
     val sqlContext = SparkUtils.buildSqlContext(sc)
@@ -68,8 +76,8 @@ object SparkNaiveBayesModelApp extends App{
   def validateAccuracyOfNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val naiveBayesModel: NaiveBayesModel = NaiveBayesModel.load(sc, conf.getString("NBFile"))
 
-    val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
-    val actualVsPredictionRDD = postsDF.select("polarity", "body").rdd.map {
+    val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentTestFile"))
+    val actualVsPredictionRDD = postsDF.select("polarity", "body").rdd.collect {
       case Row(polarity: Int, post: String) =>
         val tweetText = SparkUtils.replaceNewLines(post)
         val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(tweetText, stopWordsList.value)

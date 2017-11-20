@@ -24,11 +24,12 @@ object NormalizeApp extends App{
   val writer = new PrintWriter(new File(conf.getString("sentimentFile")))
 
 
-  Source.fromFile("/Users/sam/Downloads/2017/RC_2017-01").getLines().map(
+  Source.fromFile(conf.getString("redditDumpPath")).getLines().map(
     src => decode[RedditItem](src)
   ).filter(_.isRight).map( _ match {
     case Right(i) => i
-  }).map(ri => List(ri.subreddit,ri.author,StringEscapeUtils.escapeCsv(ri.body.replace('\n',' ')),  sentiment.computeSentiment(ri.body)))
+  }).filter(ri => !ri.body.contains("\"") |  !ri.body.contains("http") |  !ri.body.contains("https") | !ri.author.contains("bot")  | !ri.body.contains("---") )
+    .map(ri => List(ri.subreddit,ri.author,StringEscapeUtils.escapeCsv(ri.body.replace('\n',' ')),  sentiment.computeSentiment(ri.body)))
       .map(_.mkString(",") + "\n")
     .foreach(writer.write)
 

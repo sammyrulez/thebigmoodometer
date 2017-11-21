@@ -41,9 +41,9 @@ object SparkNaiveBayesModelApp extends App{
 
     val labeledRDD = postsDF.select("polarity", "body").rdd.collect {
       case Row(polarity: Int, body: Any) =>
-        val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(body.toString, stopWordsList.value)
+        val words: Seq[String] = SparkUtils.getBarebonesText(body.toString, stopWordsList.value)
 
-        LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(tweetInWords))
+        LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(words))
     }
     labeledRDD.cache()
     val effectiveLabels = labeledRDD.count();
@@ -55,7 +55,6 @@ object SparkNaiveBayesModelApp extends App{
     val naiveBayesModel: NaiveBayesModel = NaiveBayes.train(labeledRDD, lambda = 1.0, modelType = "multinomial")
     naiveBayesModel.save(sc, conf.getString("NBFile"))
   }
-
 
 
 
@@ -73,17 +72,19 @@ object SparkNaiveBayesModelApp extends App{
 
   }
 
+
+
+
   def validateAccuracyOfNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val naiveBayesModel: NaiveBayesModel = NaiveBayesModel.load(sc, conf.getString("NBFile"))
 
     val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentTestFile"))
     val actualVsPredictionRDD = postsDF.select("polarity", "body").rdd.collect {
       case Row(polarity: Int, post: String) =>
-        val tweetText = SparkUtils.replaceNewLines(post)
-        val tweetInWords: Seq[String] = SparkUtils.getBarebonesTweetText(tweetText, stopWordsList.value)
-        (polarity.toDouble,
-          naiveBayesModel.predict(MLlibSentimentAnalyzer.transformFeatures(tweetInWords)),
-          tweetText)
+        val text = SparkUtils.replaceNewLines(post)
+        (polarity,
+          MLlibSentimentAnalyzer.computeSentiment(text,stopWordsList,naiveBayesModel),
+          text)
     }
     val accuracy = 100.0 * actualVsPredictionRDD.filter(x => x._1 == x._2).count() / postsDF.count()
 

@@ -13,7 +13,7 @@ import scala.io.Source
 object SparkUtils {
 
 
-  def saveAccuracy(sc: SparkContext, actualVsPredictionRDD: RDD[(Double, Double, String)]): Unit = {
+  def saveAccuracy(sc: SparkContext, actualVsPredictionRDD: RDD[(Int, Int, String)]): Unit = {
     val sqlContext = buildSqlContext(sc)
     import sqlContext.implicits._
     val actualVsPredictionDF = actualVsPredictionRDD.toDF("Actual", "Predicted", "Text")
@@ -27,13 +27,13 @@ object SparkUtils {
       .save(conf.getString("accuracyFile"))
   }
 
-  def replaceNewLines(tweetText: String): String = {
-    tweetText.replaceAll("\n", "")
+  def replaceNewLines(text: String): String = {
+    text.replaceAll("\n", "")
   }
 
-  def getBarebonesTweetText(tweetText: String, stopWordsList: List[String]): Seq[String] = {
+  def getBarebonesText(text: String, stopWordsList: List[String]): Seq[String] = {
 
-    tweetText.toLowerCase()
+    text.toLowerCase()
       .replaceAll("\n", "")
       .replaceAll("rt\\s+", "")
       .replaceAll("\\s+@\\w+", "")

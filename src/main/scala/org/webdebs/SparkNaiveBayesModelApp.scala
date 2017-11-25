@@ -29,11 +29,47 @@ object SparkNaiveBayesModelApp extends App{
 
 
 
+
     val stopWordsList = sc.broadcast(SparkUtils.loadStopWords(conf.getString("stopWordsFile"))) //"subreddit","author", "body", "polarity"
-    createAndSaveNBModel(sc, stopWordsList)
-    validateAccuracyOfNBModel(sc, stopWordsList)
 
 
+
+
+  train(sc,stopWordsList)
+
+
+  def train(sc:SparkContext,stopWords:Broadcast[List[String]]):Unit = {
+
+
+    val posts = load(sc,conf.getString("sentimentFile"))
+    val labeledPoint = posts.select("polarity","body").rdd.collect {
+      case Row(polarity:Int,body:String) => {
+        val words = SparkUtils.getBarebonesText(body,stopWords.value)
+        LabeledPoint(polarity,MLlibSentimentAnalyzer.transformFeatures(words))
+      }
+    }
+
+    labeledPoint.cache()
+
+    val naiveBayes = NaiveBayes.train(labeledPoint)
+    naiveBayes.save(sc,conf.getString("NBFile"))
+
+  }
+
+
+
+
+  def load(sc:SparkContext,path:String):DataFrame = {
+    val sqlContext = SparkUtils.buildSqlContext(sc)
+    val posts = sqlContext.read
+        .format("com.databricks.spark.csv")
+         .option("header","false")
+           .option("inferSchema","true")
+            .option("escape","\"")
+            .option("quote","\"")
+            .load(path)
+    posts.toDF("subreddit","author","body","polarity")
+  }
 
 
   def createAndSaveNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
@@ -41,9 +77,9 @@ object SparkNaiveBayesModelApp extends App{
 
     val labeledRDD = postsDF.select("polarity", "body").rdd.collect {
       case Row(polarity: Int, body: Any) =>
-        val words: Seq[String] = SparkUtils.getBarebonesText(body.toString, stopWordsList.value)
+        val tweetInWords: Seq[String] = SparkUtils.getBarebonesText(body.toString, stopWordsList.value)
 
-        LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(words))
+        LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(tweetInWords))
     }
     labeledRDD.cache()
     val effectiveLabels = labeledRDD.count();
@@ -55,6 +91,7 @@ object SparkNaiveBayesModelApp extends App{
     val naiveBayesModel: NaiveBayesModel = NaiveBayes.train(labeledRDD, lambda = 1.0, modelType = "multinomial")
     naiveBayesModel.save(sc, conf.getString("NBFile"))
   }
+
 
 
 
@@ -72,19 +109,17 @@ object SparkNaiveBayesModelApp extends App{
 
   }
 
-
-
-
   def validateAccuracyOfNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val naiveBayesModel: NaiveBayesModel = NaiveBayesModel.load(sc, conf.getString("NBFile"))
 
     val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentTestFile"))
     val actualVsPredictionRDD = postsDF.select("polarity", "body").rdd.collect {
       case Row(polarity: Int, post: String) =>
-        val text = SparkUtils.replaceNewLines(post)
+
+        val tweetInWords: Seq[String] = SparkUtils.getBarebonesText(post, stopWordsList.value)
         (polarity,
-          MLlibSentimentAnalyzer.computeSentiment(text,stopWordsList,naiveBayesModel),
-          text)
+          naiveBayesModel.predict(MLlibSentimentAnalyzer.transformFeatures(tweetInWords)).toInt,
+          post)
     }
     val accuracy = 100.0 * actualVsPredictionRDD.filter(x => x._1 == x._2).count() / postsDF.count()
 

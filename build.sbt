@@ -19,6 +19,10 @@ assemblyExcludedJars in assembly := {
   cp filter {_.data.getName.contains("spark")}
 }
 
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
 
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % configVersion,

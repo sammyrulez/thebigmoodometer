@@ -30,9 +30,6 @@ class SentimentAnalyzer {
     }
   }
 
-  /*
-    * Normalize sentiment for visualization perspective.
-    */
   def normalizeCoreNLPSentiment(sentiment: Double): Int = {
     sentiment match {
       case s if s <= 0.0 => 0 // neutral
@@ -51,6 +48,11 @@ class SentimentAnalyzer {
       .map { case (sentence, tree) => (sentence.toString, normalizeCoreNLPSentiment(RNNCoreAnnotations.getPredictedClass(tree))) }
       .toList
   }
+
+
+
+
+
 
   def computeWeightedSentiment(text: String): Int = {
 

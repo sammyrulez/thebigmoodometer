@@ -25,13 +25,13 @@ object NormalizeApp extends App{
 
 
   Source.fromFile(conf.getString("redditDumpPath")).getLines().map(
-    src => decode[RedditItem](src)
-  ).filter(_.isRight).map( _ match {
-    case Right(i) => i
-  }).filter(ri => !ri.body.contains("\"") |  !ri.body.contains("http") |  !ri.body.contains("https") | !ri.author.contains("bot")  | !ri.body.contains("---") )
-    .map(ri => List(ri.subreddit,ri.author,StringEscapeUtils.escapeCsv(ri.body.replace('\n',' ')),  sentiment.computeSentiment(ri.body)))
-      .map(_.mkString(",") + "\n")
+    str => decode[RedditItem](str)
+  ).collect{
+    case Right(item) => item
+  }.map(item => List(item.subreddit, item.author,StringEscapeUtils.escapeCsv(item.body.replace('\n',' ')),sentiment.computeSentiment(item.body)))
+    .map(l => l.mkString(",") + "\n")
     .foreach(writer.write)
+
 
   writer.close()
 

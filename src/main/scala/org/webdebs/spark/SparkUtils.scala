@@ -27,9 +27,7 @@ object SparkUtils {
       .save(conf.getString("accuracyFile"))
   }
 
-  def replaceNewLines(text: String): String = {
-    text.replaceAll("\n", "")
-  }
+
 
   def getBarebonesText(text: String, stopWordsList: List[String]): Seq[String] = {
 

@@ -35,7 +35,7 @@ object SparkNaiveBayesModelApp extends App{
 
 
 
-  train(sc,stopWordsList)
+  validate(sc,stopWordsList)
 
 
   def train(sc:SparkContext,stopWords:Broadcast[List[String]]):Unit = {
@@ -72,47 +72,11 @@ object SparkNaiveBayesModelApp extends App{
   }
 
 
-  def createAndSaveNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
-    val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentFile"))
 
-    val labeledRDD = postsDF.select("polarity", "body").rdd.collect {
-      case Row(polarity: Int, body: Any) =>
-        val tweetInWords: Seq[String] = SparkUtils.getBarebonesText(body.toString, stopWordsList.value)
-
-        LabeledPoint(polarity, MLlibSentimentAnalyzer.transformFeatures(tweetInWords))
-    }
-    labeledRDD.cache()
-    val effectiveLabels = labeledRDD.count();
-    println(
-      f"""
-        |labels : $effectiveLabels
-      """.stripMargin)
-
-    val naiveBayesModel: NaiveBayesModel = NaiveBayes.train(labeledRDD, lambda = 1.0, modelType = "multinomial")
-    naiveBayesModel.save(sc, conf.getString("NBFile"))
-  }
-
-
-
-
-  def loadSentimentFile(sc: SparkContext, sentimentFilePath: String): DataFrame = {
-    val sqlContext = SparkUtils.buildSqlContext(sc)
-    val postsDF = sqlContext.read
-      .format("com.databricks.spark.csv")
-      .option("header", "false")
-      .option("inferSchema", "true")
-      .option("quote","\"")
-      .option("escape","\"")
-      .load(sentimentFilePath)
-
-    postsDF.toDF("subreddit","author", "body", "polarity")
-
-  }
-
-  def validateAccuracyOfNBModel(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
+  def validate(sc: SparkContext, stopWordsList: Broadcast[List[String]]): Unit = {
     val naiveBayesModel: NaiveBayesModel = NaiveBayesModel.load(sc, conf.getString("NBFile"))
 
-    val postsDF: DataFrame = loadSentimentFile(sc, conf.getString("sentimentTestFile"))
+    val postsDF: DataFrame = load(sc, conf.getString("sentimentTestFile"))
     val actualVsPredictionRDD = postsDF.select("polarity", "body").rdd.collect {
       case Row(polarity: Int, post: String) =>
 
@@ -129,6 +93,8 @@ object SparkNaiveBayesModelApp extends App{
          |*******************************""".stripMargin)
     SparkUtils.saveAccuracy(sc, actualVsPredictionRDD)
   }
+
+
 
 
 
